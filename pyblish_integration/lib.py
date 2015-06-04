@@ -22,7 +22,6 @@ import pyblish_rpc
 import pyblish_rpc.server
 import pyblish_qml.client
 import pyblish_qml.server
-import pyblish_integration
 
 CREATE_NO_WINDOW = 0x08000000
 PYBLISH_QML_CONSOLE = "PYBLISH_QML_CONSOLE"
