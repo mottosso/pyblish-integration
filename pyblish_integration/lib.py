@@ -20,6 +20,7 @@ import subprocess
 
 import pyblish_rpc
 import pyblish_rpc.server
+import pyblish_qml
 import pyblish_qml.client
 import pyblish_qml.server
 
@@ -51,7 +52,7 @@ def show():
         self.proxy = pyblish_qml.client.proxy()
 
     try:
-        self.proxy.show(self.port)
+        self.proxy.show(self.port, pyblish_qml.settings.to_dict())
 
     except (socket.error, socket.timeout):
         preload()
