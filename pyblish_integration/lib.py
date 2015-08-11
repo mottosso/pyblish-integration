@@ -26,6 +26,7 @@ import pyblish_qml.server
 
 CREATE_NO_WINDOW = 0x08000000
 PYBLISH_QML_CONSOLE = "PYBLISH_QML_CONSOLE"
+PYBLISH_QML_FIRST_PORT = "PYBLISH_QML_FIRST_PORT"
 PYBLISH_CLIENT_PORT = "PYBLISH_CLIENT_PORT"
 
 log = logging.getLogger("pyblish-integration")
@@ -36,32 +37,40 @@ self.port = None
 self.executable = None
 
 
-def show():
+def show(port=None):
     """Show the Pyblish graphical user interface
 
     An interface may already have been loaded; if that's the
     case, we favour it to launching a new unless `prefer_cached`
     is False.
 
+    Arguments:
+        port (int, optional): Port at which host is listening, defaults
+            to the one obtained through :func:`setup()`. Note that passing
+            in a custom port can lead to unexpected behaviour, such as
+            showing a QML window for another host.
+
     """
 
-    if self.port is None:
+    port = port or self.port
+
+    if port is None:
         raise TypeError("Integration not initialised correctly")
 
     if self.proxy is None:
         self.proxy = pyblish_qml.client.proxy()
 
+    settings = pyblish_qml.settings.to_dict()
+
     try:
-        self.proxy.show(self.port, pyblish_qml.settings.to_dict())
+        self.proxy.show(port, settings)
 
     except (socket.error, socket.timeout):
-        preload()
-
-    finally:
-        self.proxy.show(self.port)
+        _preload()
+        self.proxy.show(port, settings)
 
 
-def setup(console=False):
+def setup(console=False, port=None):
     """Setup integration
 
     Find or launch Pyblish QML and setup endpoint in host
@@ -70,6 +79,9 @@ def setup(console=False):
 
     Attributes:
         console (bool): Display console with GUI
+        port (int, optional): Port from which to start
+            looking for available ports, defaults to
+            pyblish_qml.server.first_port
 
     """
 
@@ -79,19 +91,19 @@ def setup(console=False):
     try:
         # In case QML is live and well, ask it
         # for the next available port number.
+        args = [port] if port else []
         self.proxy = pyblish_qml.client.proxy()
-        self.port = self.proxy.find_available_port()
+        self.port = self.proxy.find_available_port(*args)
 
     except (socket.timeout, socket.error):
         # Otherwise, we can assume that this is
         # the first time QML is being opened.
-        self.port = pyblish_qml.server.first_port
-        proc = preload()
+        self.port = port or pyblish_qml.server.first_port
+        popen = _preload()
 
-        assert proc.poll() is None
+        assert popen.poll() is None
 
     finally:
-
         os.environ[PYBLISH_CLIENT_PORT] = str(self.port)
 
         try:
@@ -132,7 +144,20 @@ def _serve(port):
     return port
 
 
-def preload():
+def _preload(port=None):
+    """Load an instance of Pyblish QML in the background
+
+    Arguments:
+        port (int, optional): Port at which QML will be listening
+
+    Usage:
+        The preloaded Pyblish QML can be accessed through
+        :func:`pyblish_qml.client.proxy()`, which opens up
+        an XMLRPC connection through which commands may be sent,
+        such as :func:`p.find_available_port()`.
+
+    """
+
     console = True if os.environ.get(PYBLISH_QML_CONSOLE) else False
     executable = registered_python_executable() or "python"
     kwargs = {
@@ -144,8 +169,10 @@ def preload():
         )
     }
 
-    process = subprocess.Popen(**kwargs)
-    return process
+    if port is not None:
+        kwargs["args"] += ["--port", str(port)]
+
+    return subprocess.Popen(**kwargs)
 
 
 def register_dispatch_wrapper(wrapper):
