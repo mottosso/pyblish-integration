@@ -118,10 +118,19 @@ def setup(console=False, port=None):
             log.debug("Integration failed..")
 
 
+def teardown():
+    """Tear down integration"""
+    del self.proxy
+    self.port = None
+    self.proxy = None
+    pyblish_rpc.server.kill()
+    echo("Integration torn down successfully")
+
+
 def _serve(port):
     def server():
         """Provide QML with a friend to speak with"""
-        pyblish_rpc.server.start_production_server(port)
+        self.server = pyblish_rpc.server.start_production_server(port)
 
     def heartbeat_emitter():
         """Let QML know we're still here"""
