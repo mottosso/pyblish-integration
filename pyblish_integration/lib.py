@@ -23,6 +23,7 @@ import pyblish_rpc.server
 import pyblish_qml
 import pyblish_qml.client
 import pyblish_qml.server
+import pyblish.api
 
 CREATE_NO_WINDOW = 0x08000000
 PYBLISH_QML_CONSOLE = "PYBLISH_QML_CONSOLE"
@@ -87,6 +88,8 @@ def setup(console=False, port=None):
 
     if console:
         os.environ[PYBLISH_QML_CONSOLE] = "1"
+
+    register_callbacks()
 
     try:
         # In case QML is live and well, ask it
@@ -182,6 +185,13 @@ def _preload(port=None):
         kwargs["args"] += ["--port", str(port)]
 
     return subprocess.Popen(**kwargs)
+
+
+def register_callbacks():
+    def toggle_instance(instance, new_value, old_value):
+        instance.data["publish"] = new_value
+
+    pyblish.api.register_callback("instanceToggled", toggle_instance)
 
 
 def register_dispatch_wrapper(wrapper):
